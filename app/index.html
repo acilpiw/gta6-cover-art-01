@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neon Coast Cover Studio — GTA-style cover art maker</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<main class="app">
+  <section class="controls" aria-label="Cover controls">
+    <header class="brand">
+      <p class="brand-kicker">NEON COAST</p>
+      <h1>Cover Studio</h1>
+      <p class="brand-sub">Your photo, a caption, and sixty seconds stand between you and a multi-panel Vice City cover. Everything happens on this machine — photos are never uploaded.</p>
+    </header>
+
+    <div class="control-block">
+      <h2>1 · Photos</h2>
+      <label class="file-label">Add your photos
+        <input id="photoInput" type="file" accept="image/*" multiple>
+      </label>
+      <button id="demoButton" type="button" class="ghost">Try the demo photos</button>
+      <div id="thumbStrip" class="thumb-strip" aria-label="Your photos"></div>
+      <p class="hint">Pick a panel below, then tap a photo to put it in that panel. Drag the cover to position the selected panel's photo.</p>
+    </div>
+
+    <div class="control-block">
+      <h2>2 · Panels</h2>
+      <div id="layoutGroup" class="chip-row" role="group" aria-label="Layout"></div>
+      <div id="panelGroup" class="chip-row" role="group" aria-label="Panel"></div>
+      <label>Zoom <input id="zoomRange" type="range" min="1" max="3" step="0.01" value="1"></label>
+      <label>Pan across <input id="panXRange" type="range" min="-1" max="1" step="0.01" value="0"></label>
+      <label>Pan up / down <input id="panYRange" type="range" min="-1" max="1" step="0.01" value="0"></label>
+      <div class="button-row">
+        <button id="fillAllButton" type="button" class="ghost">Fill all panels with this photo</button>
+        <button id="clearPanelButton" type="button" class="ghost">Clear panel</button>
+      </div>
+    </div>
+
+    <div class="control-block">
+      <h2>3 · Look</h2>
+      <div id="gradeGroup" class="chip-row" role="group" aria-label="Colour grade"></div>
+      <label class="check-label"><input id="grainToggle" type="checkbox" checked> Film grain</label>
+      <label class="check-label"><input id="vignetteToggle" type="checkbox" checked> Vignette</label>
+      <label>Wanted stars <input id="starRange" type="range" min="0" max="5" step="1" value="3"></label>
+      <label>Badge <input id="badgeInput" type="text" maxlength="18" value="DAY ONE"></label>
+    </div>
+
+    <div class="control-block">
+      <h2>4 · Words</h2>
+      <label>Caption <input id="captionInput" type="text" maxlength="26" value="NEON COAST"></label>
+      <label>Subtitle <input id="subtitleInput" type="text" maxlength="34" value="welcome back to the coast"></label>
+    </div>
+
+    <div class="control-block">
+      <h2>5 · Export</h2>
+      <div id="sizeGroup" class="chip-row" role="group" aria-label="Post size"></div>
+      <button id="exportButton" type="button" class="export">Download PNG</button>
+      <p id="statusLine" role="status"></p>
+    </div>
+  </section>
+  <section class="stage" aria-label="Cover preview">
+    <canvas id="coverCanvas" width="1080" height="1350"></canvas>
+  </section>
+</main>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
