@@ -1,33 +1,44 @@
-// Fixed scenes for screenshots, driven by the page's query string:
-//   ?shot=cover   — the cover alone, full frame (an exported-cover view)
-//   ?shot=editor  — the whole studio with a photo loaded
-// Parameters: size (square|portrait|wide), layout, grade, caption, sub,
-// badge, stars, photos (comma list of sample names, without extension).
-// window.__shotReady is set once the scene has painted, so the screenshot
-// tooling can wait for a finished frame instead of guessing a delay.
+// shots.js — deterministic scenes used only for screenshots.
+//
+// The screenshot harness loads the studio with a query string such as
+//   ?shot=cover&size=wide&layout=heroGrid&grade=sunset&...
+// readShotScene turns that string into a plain scene object (or null when
+// no shot was requested, meaning "boot the normal editor"). Once main.js
+// has painted the scene it calls markShotReady, which flips
+// window.__shotReady after two animation frames so the harness captures a
+// settled frame rather than a half-loaded one.
+
+const DEFAULT_PHOTOS = 'boulevard,pier';
 
 export function readShotScene(params) {
   const mode = params.get('shot');
   if (!mode) return null;
-  const photoList = (params.get('photos') ?? 'boulevard,pier')
+
+  const rawList = params.get('photos') || DEFAULT_PHOTOS;
+  const photoUrls = rawList
     .split(',')
-    .map((name) => name.trim())
-    .filter(Boolean)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
     .map((name) => `samples/${name}.jpg`);
+
+  const fallbackSize = mode === 'cover' ? 'wide' : 'portrait';
+
   return {
     mode,
-    sizeId: params.get('size') ?? (mode === 'cover' ? 'wide' : 'portrait'),
-    layout: params.get('layout') ?? 'heroGrid',
-    grade: params.get('grade') ?? 'sunset',
-    caption: params.get('caption') ?? 'NEON COAST',
-    subtitle: params.get('sub') ?? 'welcome back to the coast',
-    badge: params.get('badge') ?? 'DAY ONE',
+    sizeId: params.get('size') || fallbackSize,
+    layout: params.get('layout') || 'heroGrid',
+    grade: params.get('grade') || 'sunset',
+    caption: params.get('caption') || 'NEON COAST',
+    subtitle: params.get('sub') || 'welcome back to the coast',
+    badge: params.get('badge') || 'DAY ONE',
     stars: Number(params.get('stars') ?? 3),
-    photoUrls: photoList,
+    photoUrls,
   };
 }
 
 export function markShotReady() {
+  // Double rAF: the first frame schedules layout, the second guarantees
+  // the canvas paint triggered by the scene has actually been presented.
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
       window.__shotReady = true;
