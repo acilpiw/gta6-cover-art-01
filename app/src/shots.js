@@ -1,22 +1,19 @@
-// Fixed scenes for screenshot capture.
-// The harness opens the studio with a query like
-// ?shot=cover&size=wide&layout=heroGrid&grade=sunset
-// I translate that into a plain object here, and once the editor
-// has painted I flag readiness after two frames so captures are stable.
+// Screenshot scenes for Neon Coast Cover Studio.
+// The capture harness passes a query string; I parse it into a scene
+// object here, or return null for a normal editor boot. After painting,
+// the editor signals readiness over two animation frames.
 
-const FALLBACK_PHOTOS = "boulevard,pier";
+const DEFAULT_LIST = "boulevard,pier";
 
 export function readShotScene(params) {
   const mode = params.get("shot");
   if (!mode) return null;
-
-  const listRaw = params.get("photos") || FALLBACK_PHOTOS;
-  const photoUrls = listRaw
+  const raw = params.get("photos") || DEFAULT_LIST;
+  const photoUrls = raw
     .split(",")
-    .map((name) => name.trim())
-    .filter(Boolean)
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0)
     .map((name) => `samples/${name}.jpg`);
-
   return {
     mode,
     sizeId: params.get("size") || (mode === "cover" ? "wide" : "portrait"),

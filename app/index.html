@@ -1,5 +1,5 @@
 <!doctype html>
-<!-- Neon Coast Cover Studio: sidebar controls on the left, live canvas preview on the right. All ids here are wired up in src/main.js -->
+<!-- Neon Coast Cover Studio: controls in the sidebar, live canvas preview beside them. Every id here is wired in src/main.js -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -15,7 +15,6 @@
       <h1 class="masthead-title">Cover Studio</h1>
       <p class="masthead-lede">Drop in a photo, write a caption, and walk away with a multi-panel poster in the Vice City tradition. All processing stays in your browser — nothing leaves this page.</p>
     </header>
-
     <section class="card">
       <h2 class="card-title">1 · Photos</h2>
       <label class="dropzone">
@@ -26,62 +25,31 @@
       <div id="thumbStrip" class="thumbs" aria-label="Your photos"></div>
       <p class="note">Select a panel first, then tap a thumbnail to assign it. You can also drag directly on the preview to reposition the active panel.</p>
     </section>
-
     <section class="card">
       <h2 class="card-title">2 · Panels</h2>
       <div id="layoutGroup" class="pills" role="group" aria-label="Layout"></div>
       <div id="panelGroup" class="pills" role="group" aria-label="Panel"></div>
-      <label class="field">
-        <span>Zoom</span>
-        <input id="zoomRange" type="range" min="1" max="3" step="0.01" value="1">
-      </label>
-      <label class="field">
-        <span>Pan across</span>
-        <input id="panXRange" type="range" min="-1" max="1" step="0.01" value="0">
-      </label>
-      <label class="field">
-        <span>Pan up / down</span>
-        <input id="panYRange" type="range" min="-1" max="1" step="0.01" value="0">
-      </label>
+      <label class="field"><span>Zoom</span><input id="zoomRange" type="range" min="1" max="3" step="0.01" value="1"></label>
+      <label class="field"><span>Pan across</span><input id="panXRange" type="range" min="-1" max="1" step="0.01" value="0"></label>
+      <label class="field"><span>Pan up / down</span><input id="panYRange" type="range" min="-1" max="1" step="0.01" value="0"></label>
       <div class="split-buttons">
         <button id="fillAllButton" type="button" class="btn btn-quiet">Fill all panels with this photo</button>
         <button id="clearPanelButton" type="button" class="btn btn-quiet">Clear panel</button>
       </div>
     </section>
-
     <section class="card">
       <h2 class="card-title">3 · Look</h2>
       <div id="gradeGroup" class="pills" role="group" aria-label="Colour grade"></div>
-      <label class="toggle">
-        <input id="grainToggle" type="checkbox" checked>
-        <span>Film grain</span>
-      </label>
-      <label class="toggle">
-        <input id="vignetteToggle" type="checkbox" checked>
-        <span>Vignette</span>
-      </label>
-      <label class="field">
-        <span>Wanted stars</span>
-        <input id="starRange" type="range" min="0" max="5" step="1" value="3">
-      </label>
-      <label class="field">
-        <span>Badge</span>
-        <input id="badgeInput" type="text" maxlength="18" value="DAY ONE">
-      </label>
+      <label class="toggle"><input id="grainToggle" type="checkbox" checked><span>Film grain</span></label>
+      <label class="toggle"><input id="vignetteToggle" type="checkbox" checked><span>Vignette</span></label>
+      <label class="field"><span>Wanted stars</span><input id="starRange" type="range" min="0" max="5" step="1" value="3"></label>
+      <label class="field"><span>Badge</span><input id="badgeInput" type="text" maxlength="18" value="DAY ONE"></label>
     </section>
-
     <section class="card">
       <h2 class="card-title">4 · Words</h2>
-      <label class="field">
-        <span>Caption</span>
-        <input id="captionInput" type="text" maxlength="26" value="NEON COAST">
-      </label>
-      <label class="field">
-        <span>Subtitle</span>
-        <input id="subtitleInput" type="text" maxlength="34" value="welcome back to the coast">
-      </label>
+      <label class="field"><span>Caption</span><input id="captionInput" type="text" maxlength="26" value="NEON COAST"></label>
+      <label class="field"><span>Subtitle</span><input id="subtitleInput" type="text" maxlength="34" value="welcome back to the coast"></label>
     </section>
-
     <section class="card">
       <h2 class="card-title">5 · Export</h2>
       <div id="sizeGroup" class="pills" role="group" aria-label="Post size"></div>
@@ -89,7 +57,6 @@
       <p id="statusLine" class="status" role="status"></p>
     </section>
   </aside>
-
   <main class="preview" aria-label="Cover preview">
     <canvas id="coverCanvas" width="1080" height="1350"></canvas>
   </main>

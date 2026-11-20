@@ -1,6 +1,7 @@
-// Tiny static server for trying the studio locally.
+// Local development server for Neon Coast Cover Studio.
 // Usage: node serve.ts [--port 8080]
-// Serves app/ only, blocks path escapes, no dependencies.
+// Serves only the app/ folder, refuses paths that escape it, and
+// sends no-cache headers so edits show up on a plain refresh.
 
 import { createReadStream, statSync } from "node:fs";
 import { createServer } from "node:http";
@@ -9,7 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const appDir = resolve(fileURLToPath(new URL("./app", import.meta.url)));
 
-function readPort(args: string[]): number {
+function readPort(args) {
   const at = args.indexOf("--port");
   if (at === -1) return 8080;
   const value = Number(args[at + 1]);
@@ -18,7 +19,7 @@ function readPort(args: string[]): number {
 
 const port = readPort(process.argv.slice(2));
 
-const MIME: Record<string, string> = {
+const MIME = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".mjs": "text/javascript; charset=utf-8",
@@ -44,7 +45,7 @@ const MIME: Record<string, string> = {
 };
 
 const server = createServer((req, res) => {
-  let pathname: string;
+  let pathname;
   try {
     const url = new URL(req.url ?? "/", "http://localhost");
     pathname = decodeURIComponent(url.pathname);
@@ -52,7 +53,6 @@ const server = createServer((req, res) => {
     res.writeHead(400).end("bad request");
     return;
   }
-
   if (pathname.endsWith("/")) pathname += "index.html";
   const target = resolve(join(appDir, normalize(pathname)));
   const inside = target === appDir || target.startsWith(appDir + sep);
@@ -60,8 +60,7 @@ const server = createServer((req, res) => {
     res.writeHead(403).end("forbidden");
     return;
   }
-
-  let size: number;
+  let size;
   try {
     const info = statSync(target);
     if (!info.isFile()) throw new Error("not a file");
@@ -70,13 +69,8 @@ const server = createServer((req, res) => {
     res.writeHead(404).end("not found");
     return;
   }
-
   const type = MIME[extname(target).toLowerCase()] ?? "application/octet-stream";
-  res.writeHead(200, {
-    "content-type": type,
-    "content-length": size,
-    "cache-control": "no-store",
-  });
+  res.writeHead(200, { "content-type": type, "content-length": size, "cache-control": "no-store" });
   createReadStream(target).pipe(res);
 });
 

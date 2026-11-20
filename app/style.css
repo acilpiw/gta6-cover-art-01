@@ -1,6 +1,6 @@
-/* Neon Coast Cover Studio styles.
-   Two-column shell on desktop, single column on small screens.
-   In shot-cover mode the sidebar hides and the canvas fills the frame. */
+/* Neon Coast Cover Studio - editor styles
+   Desktop is a flex row: narrow sidebar plus sticky preview.
+   Phones stack into one column. Shot mode hides the sidebar. */
 
 :root {
   --deep: #12081f;
@@ -28,106 +28,60 @@ body {
 }
 
 .layout, .app {
-  display: flex;
-  gap: 28px;
-  align-items: flex-start;
-  justify-content: center;
-  max-width: 1440px;
-  margin: 0 auto;
-  padding: 26px;
+  display: flex; gap: 28px; align-items: flex-start; justify-content: center;
+  max-width: 1440px; margin: 0 auto; padding: 26px;
 }
 
 .sidebar, .controls {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  width: 330px;
-  flex: none;
+  display: flex; flex-direction: column; gap: 16px; width: 330px; flex: none;
 }
 
 .preview, .stage {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  position: sticky;
-  top: 26px;
+  flex: 1; display: flex; justify-content: center; position: sticky; top: 26px;
 }
 
 .masthead-eyebrow, .brand-kicker {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: .42em;
-  color: var(--teal);
+  font-size: 12px; font-weight: 800; letter-spacing: .42em; color: var(--teal);
 }
 
 .masthead-title, .brand h1 {
-  margin: 2px 0 6px;
-  font-size: 40px;
-  line-height: 1;
-  font-style: italic;
-  text-transform: uppercase;
+  margin: 2px 0 6px; font-size: 40px; line-height: 1;
+  font-style: italic; text-transform: uppercase;
 }
 
-.masthead-lede, .brand-sub {
-  margin: 0;
-  font-size: 13.5px;
-  color: var(--soft);
-}
+.masthead-lede, .brand-sub { margin: 0; font-size: 13.5px; color: var(--soft); }
 
 .card, .control-block {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px 16px;
-  background: var(--panel);
-  border: 1px solid var(--edge);
-  border-radius: var(--radius);
+  display: flex; flex-direction: column; gap: 10px; padding: 14px 16px;
+  background: var(--panel); border: 1px solid var(--edge); border-radius: var(--radius);
 }
 
 .card-title, .control-block h2 {
-  margin: 0;
-  font-size: 13px;
-  letter-spacing: .14em;
-  text-transform: uppercase;
-  color: var(--sun);
+  margin: 0; font-size: 13px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--sun);
 }
 
 .field, label {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--soft);
+  display: flex; flex-direction: column; gap: 5px;
+  font-size: 13px; font-weight: 600; color: var(--soft);
 }
 
 .toggle, label.check-label {
-  flex-direction: row;
-  align-items: center;
-  gap: 8px;
-  color: var(--text);
+  flex-direction: row; align-items: center; gap: 8px; color: var(--text);
 }
 
 input[type="text"] {
-  font: inherit;
-  padding: 9px 10px;
-  color: var(--text);
-  background: var(--field);
-  border: 1px solid var(--edge);
-  border-radius: 8px;
+  font: inherit; padding: 9px 10px; color: var(--text);
+  background: var(--field); border: 1px solid var(--edge); border-radius: 8px;
 }
 
 input[type="range"] { width: 100%; accent-color: var(--pink); }
 input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--pink); }
 
 .dropzone, .file-label {
-  padding: 12px;
-  text-align: center;
-  color: var(--text);
-  background: var(--field);
-  border: 1.5px dashed var(--teal);
-  border-radius: 10px;
-  cursor: pointer;
+  padding: 12px; text-align: center; color: var(--text);
+  background: var(--field); border: 1.5px dashed var(--teal);
+  border-radius: 10px; cursor: pointer;
 }
 .dropzone input, .file-label input { display: none; }
 
@@ -141,11 +95,13 @@ input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--pink); }
 .note, .hint { margin: 0; font-size: 12.5px; color: var(--soft); }
 
 .btn, button {
-  font: inherit; font-weight: 700; padding: 10px 12px;
-  color: var(--text); background: #2c1850; border: 0; border-radius: 9px; cursor: pointer;
+  font: inherit; font-weight: 700; padding: 10px 12px; color: var(--text);
+  background: #2c1850; border: 0; border-radius: 9px; cursor: pointer;
 }
 .btn:hover, button:hover { filter: brightness(1.25); }
-.btn-quiet, button.ghost { font-weight: 600; background: transparent; border: 1px solid var(--edge); }
+.btn-quiet, button.ghost {
+  font-weight: 600; background: transparent; border: 1px solid var(--edge);
+}
 .btn-export, button.export {
   padding: 14px; font-size: 17px;
   background: linear-gradient(92deg, var(--pink), #ff7a3c);
@@ -157,8 +113,8 @@ input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--pink); }
 
 .pills, .chip-row { display: flex; flex-wrap: wrap; gap: 7px; }
 .chip {
-  padding: 7px 11px; font-size: 13px;
-  background: var(--field); border: 1px solid var(--edge); border-radius: 999px;
+  padding: 7px 11px; font-size: 13px; background: var(--field);
+  border: 1px solid var(--edge); border-radius: 999px;
 }
 .chip.active { color: #fff; background: var(--pink); border-color: var(--pink); }
 

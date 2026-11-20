@@ -1,9 +1,8 @@
-// Neon Coast Cover Studio - canvas poster renderer
-// I paint the whole cover on a 2d canvas: photo panels with gutters,
-// a colour wash that ties them together, optional grain and vignette,
-// then the headline block, wanted stars and a badge ribbon on top.
-// Photos are supplied by the visitor; empty slots get a painted
-// shoreline so the grid never looks broken.
+// Neon Coast Cover Studio - poster renderer on canvas
+// Everything for the cover is painted here: photo panels divided by
+// gutters, a grade wash over the whole sheet, optional grain and
+// vignette, then headline type, wanted stars and a badge ribbon.
+// Visitor photos fill the panels; empty panels get a painted coast.
 
 export const POST_SIZES = [
   { id: "square", label: "Square 1080 × 1080", width: 1080, height: 1080 },
@@ -136,10 +135,10 @@ const HEADLINE_STACK =
   'Impact, "Arial Narrow Bold", "Franklin Gothic Medium", "Liberation Sans Narrow", sans-serif';
 const SCRIPT_STACK = '"Segoe Script", "Brush Script MT", "Comic Sans MS", cursive';
 
-let grainTileCache = null;
+let grainCache = null;
 
 export function buildGrainTile() {
-  if (grainTileCache) return grainTileCache;
+  if (grainCache) return grainCache;
   const size = 180;
   const tile = document.createElement("canvas");
   tile.width = size;
@@ -156,7 +155,7 @@ export function buildGrainTile() {
     img.data[i + 3] = 255;
   }
   g.putImageData(img, 0, 0);
-  grainTileCache = tile;
+  grainCache = tile;
   return tile;
 }
 
@@ -179,18 +178,17 @@ export function drawPanelPhoto(ctx, image, rect, view, filter) {
   const zoom = Math.max(1, view?.zoom ?? 1);
   const panX = clampUnit(view?.panX ?? 0);
   const panY = clampUnit(view?.panY ?? 0);
-  const scaleToCover = Math.max(
+  const coverScale = Math.max(
     rect.w / image.naturalWidth,
     rect.h / image.naturalHeight,
   );
-  const scale = scaleToCover * zoom;
+  const scale = coverScale * zoom;
   const dw = image.naturalWidth * scale;
   const dh = image.naturalHeight * scale;
-  const overflowX = Math.max(0, dw - rect.w);
-  const overflowY = Math.max(0, dh - rect.h);
-  const dx = rect.x - overflowX / 2 + panX * (overflowX / 2);
-  const dy = rect.y - overflowY / 2 + panY * (overflowY / 2);
-
+  const overX = Math.max(0, dw - rect.w);
+  const overY = Math.max(0, dh - rect.h);
+  const dx = rect.x - overX / 2 + panX * (overX / 2);
+  const dy = rect.y - overY / 2 + panY * (overY / 2);
   ctx.save();
   ctx.beginPath();
   ctx.rect(rect.x, rect.y, rect.w, rect.h);
@@ -204,12 +202,10 @@ export function drawPanelPhoto(ctx, image, rect, view, filter) {
 export function paintBackdropPanel(ctx, rect, gradeId, panelIndex) {
   const grade = COLOR_GRADES[gradeId] || COLOR_GRADES.sunset;
   const night = gradeId === "neon" || gradeId === "noir";
-
   ctx.save();
   ctx.beginPath();
   ctx.rect(rect.x, rect.y, rect.w, rect.h);
   ctx.clip();
-
   const sky = ctx.createLinearGradient(0, rect.y, 0, rect.y + rect.h);
   sky.addColorStop(0, night ? "#101736" : "#3b1d5e");
   sky.addColorStop(0.55, gradeId === "neon" ? "#5e1a68" : "#b52a6e");
@@ -217,41 +213,31 @@ export function paintBackdropPanel(ctx, rect, gradeId, panelIndex) {
   sky.addColorStop(1, "#16102a");
   ctx.fillStyle = sky;
   ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-
   const sunX = rect.x + rect.w * (0.3 + 0.18 * (panelIndex % 3));
   const sunY = rect.y + rect.h * 0.68;
   const sunR = Math.min(rect.w, rect.h) * 0.26;
-
   const halo = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR * 1.7);
   halo.addColorStop(0, "rgba(255, 214, 120, 0.95)");
   halo.addColorStop(0.55, "rgba(255, 122, 60, 0.55)");
   halo.addColorStop(1, "rgba(255, 122, 60, 0)");
   ctx.fillStyle = halo;
   ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-
   ctx.fillStyle = "#ffd76a";
   ctx.beginPath();
   ctx.arc(sunX, sunY, sunR * 0.52, 0, Math.PI * 2);
   ctx.fill();
-
   ctx.fillStyle = "rgba(10, 8, 24, 0.88)";
   ctx.fillRect(rect.x, rect.y + rect.h * 0.78, rect.w, rect.h * 0.22);
-
   ctx.strokeStyle = "rgba(6, 6, 16, 0.95)";
   ctx.lineCap = "round";
-  const trunkBaseX = rect.x + rect.w * 0.78;
-  const trunkBaseY = rect.y + rect.h * 0.8;
-  const crownX = trunkBaseX + rect.w * 0.08;
+  const baseX = rect.x + rect.w * 0.78;
+  const baseY = rect.y + rect.h * 0.8;
+  const crownX = baseX + rect.w * 0.08;
   const crownY = rect.y + rect.h * 0.34;
   ctx.lineWidth = Math.max(3, rect.w * 0.012);
   ctx.beginPath();
-  ctx.moveTo(trunkBaseX, trunkBaseY);
-  ctx.quadraticCurveTo(
-    trunkBaseX + rect.w * 0.03,
-    rect.y + rect.h * 0.55,
-    crownX,
-    crownY,
-  );
+  ctx.moveTo(baseX, baseY);
+  ctx.quadraticCurveTo(baseX + rect.w * 0.03, rect.y + rect.h * 0.55, crownX, crownY);
   ctx.stroke();
   ctx.lineWidth = Math.max(2, rect.w * 0.008);
   for (let f = 0; f < 6; f++) {
@@ -265,7 +251,6 @@ export function paintBackdropPanel(ctx, rect, gradeId, panelIndex) {
     ctx.quadraticCurveTo(ctrlX, ctrlY, tipX, tipY);
     ctx.stroke();
   }
-
   ctx.fillStyle = grade.glow;
   ctx.fillRect(rect.x, rect.y, rect.w, rect.h * 0.1);
   ctx.restore();
@@ -273,13 +258,13 @@ export function paintBackdropPanel(ctx, rect, gradeId, panelIndex) {
 
 export function fitTitleSize(ctx, text, maxWidth, startSize) {
   let size = startSize;
-  const applyFont = () => {
+  const apply = () => {
     ctx.font = `italic 900 ${size}px ${HEADLINE_STACK}`;
   };
-  applyFont();
+  apply();
   while (ctx.measureText(text).width > maxWidth && size > 18) {
     size *= 0.94;
-    applyFont();
+    apply();
   }
   return size;
 }
@@ -314,12 +299,7 @@ function gutterInset(rect, sheetW, sheetH, gutter) {
   const top = rect.y > 0 ? half : 0;
   const right = rect.x + rect.w < sheetW ? half : 0;
   const bottom = rect.y + rect.h < sheetH ? half : 0;
-  return {
-    x: rect.x + left,
-    y: rect.y + top,
-    w: rect.w - left - right,
-    h: rect.h - top - bottom,
-  };
+  return { x: rect.x + left, y: rect.y + top, w: rect.w - left - right, h: rect.h - top - bottom };
 }
 
 export function drawCoverArt(canvas, state) {
@@ -328,61 +308,37 @@ export function drawCoverArt(canvas, state) {
   const H = canvas.height;
   const grade = COLOR_GRADES[state.grade] || COLOR_GRADES.sunset;
   const gutter = Math.max(4, Math.round(W * 0.006));
-
   ctx.fillStyle = "#f4f1ea";
   ctx.fillRect(0, 0, W, H);
-
   const rects = panelRectsFor(state.layout, W, H);
   rects.forEach((rect, i) => {
     const inner = gutterInset(rect, W, H, gutter);
     const panel = state.panels[i] || {};
-    const photo =
-      panel.photoIndex != null && panel.photoIndex >= 0
-        ? state.photos[panel.photoIndex]
-        : null;
+    const photo = panel.photoIndex != null && panel.photoIndex >= 0 ? state.photos[panel.photoIndex] : null;
     if (photo) drawPanelPhoto(ctx, photo, inner, panel, grade.filter);
     else paintBackdropPanel(ctx, inner, state.grade, i);
-
     if (state.showSelection && state.selectedPanel === i) {
       ctx.strokeStyle = "#ff2e88";
       ctx.lineWidth = Math.max(4, W * 0.005);
       ctx.strokeRect(inner.x + 3, inner.y + 3, inner.w - 6, inner.h - 6);
     }
   });
-
   const wash = ctx.createLinearGradient(0, 0, W * 0.25, H);
   for (const [stop, colour] of grade.wash) wash.addColorStop(stop, colour);
   ctx.fillStyle = wash;
   ctx.fillRect(0, 0, W, H);
-
-  const glow = ctx.createRadialGradient(
-    W * 0.5,
-    H * 0.16,
-    0,
-    W * 0.5,
-    H * 0.16,
-    W * 0.75,
-  );
+  const glow = ctx.createRadialGradient(W * 0.5, H * 0.16, 0, W * 0.5, H * 0.16, W * 0.75);
   glow.addColorStop(0, grade.glow);
   glow.addColorStop(1, "rgba(0,0,0,0)");
   ctx.fillStyle = glow;
   ctx.fillRect(0, 0, W, H);
-
   if (state.vignette) {
-    const vig = ctx.createRadialGradient(
-      W / 2,
-      H / 2,
-      Math.min(W, H) * 0.42,
-      W / 2,
-      H / 2,
-      Math.max(W, H) * 0.78,
-    );
+    const vig = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.42, W / 2, H / 2, Math.max(W, H) * 0.78);
     vig.addColorStop(0, "rgba(0,0,0,0)");
     vig.addColorStop(1, "rgba(5,2,12,0.5)");
     ctx.fillStyle = vig;
     ctx.fillRect(0, 0, W, H);
   }
-
   if (state.grain) {
     ctx.save();
     ctx.globalAlpha = 0.09;
@@ -391,31 +347,20 @@ export function drawCoverArt(canvas, state) {
     ctx.fillRect(0, 0, W, H);
     ctx.restore();
   }
-
   drawTitleBlock(ctx, state, grade, W, H);
   if (state.stars > 0) drawStarRow(ctx, state.stars, W, H);
-  if (state.badge && state.badge.trim()) {
-    drawBadgeRibbon(ctx, state.badge.trim(), W, H);
-  }
-
+  if (state.badge && state.badge.trim()) drawBadgeRibbon(ctx, state.badge.trim(), W, H);
   ctx.strokeStyle = "rgba(255,255,255,0.9)";
   ctx.lineWidth = Math.max(3, W * 0.004);
-  ctx.strokeRect(
-    ctx.lineWidth / 2,
-    ctx.lineWidth / 2,
-    W - ctx.lineWidth,
-    H - ctx.lineWidth,
-  );
+  ctx.strokeRect(ctx.lineWidth / 2, ctx.lineWidth / 2, W - ctx.lineWidth, H - ctx.lineWidth);
 }
 
 export function drawTitleBlock(ctx, state, grade, w, h) {
   const headline = (state.caption || "").trim().toUpperCase();
   const sub = (state.subtitle || "").trim();
   const baseline = h * 0.965;
-
   ctx.save();
   ctx.textAlign = "center";
-
   if (headline) {
     const size = fitTitleSize(ctx, headline, w * 0.92, h * 0.155);
     ctx.save();
@@ -436,7 +381,6 @@ export function drawTitleBlock(ctx, state, grade, w, h) {
     ctx.shadowColor = "transparent";
     ctx.fillText(headline, 0, 0);
     ctx.restore();
-
     if (sub) {
       const subSize = Math.max(20, size * 0.34);
       ctx.font = `italic 700 ${subSize}px ${SCRIPT_STACK}`;
@@ -452,7 +396,6 @@ export function drawTitleBlock(ctx, state, grade, w, h) {
     ctx.fillStyle = grade.script;
     ctx.fillText(sub, w / 2, baseline);
   }
-
   ctx.restore();
 }
 
@@ -461,9 +404,7 @@ export function drawStarRow(ctx, stars, w, h) {
   const step = radius * 2.5;
   const firstX = w - radius * 1.6 - step * 4;
   const y = radius * 1.7;
-  for (let i = 0; i < 5; i++) {
-    drawWantedStar(ctx, firstX + i * step, y, radius, i < stars);
-  }
+  for (let i = 0; i < 5; i++) drawWantedStar(ctx, firstX + i * step, y, radius, i < stars);
 }
 
 export function drawBadgeRibbon(ctx, text, w, h) {

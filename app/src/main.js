@@ -1,8 +1,9 @@
-// Editor controller for Neon Coast Cover Studio.
-// I keep one mutable state object, wire every sidebar control to it,
-// repaint through cover.js, support dragging on the canvas to re-crop,
-// export a full-resolution PNG, and boot either from a ?shot= scene
-// or from the bundled demo photos. User images stay local as object URLs.
+// Neon Coast Cover Studio - editor controller
+// One state object drives everything: photos, panel crops, layout,
+// grade, wording and effects. I wire the sidebar controls to that
+// state, repaint via cover.js, allow drag-to-pan on the canvas,
+// export PNG at full size, and boot from a shot scene or the demo set.
+// User photos are only ever object URLs held locally in the browser.
 
 import {
   COLOR_GRADES,
@@ -57,9 +58,7 @@ function syncPanelCount() {
   while (editorState.panels.length < wanted) {
     const idx = editorState.panels.length;
     editorState.panels.push({
-      photoIndex: editorState.photos.length
-        ? idx % editorState.photos.length
-        : -1,
+      photoIndex: editorState.photos.length ? idx % editorState.photos.length : -1,
       zoom: 1,
       panX: 0,
       panY: 0,
@@ -94,9 +93,8 @@ export function addPhoto(image, url) {
   const newIndex = editorState.photos.length - 1;
   syncPanelCount();
   const emptyAt = editorState.panels.findIndex((p) => p.photoIndex < 0);
-  if (emptyAt !== -1) {
-    editorState.panels[emptyAt].photoIndex = newIndex;
-  } else if (editorState.photos.length === 1) {
+  if (emptyAt !== -1) editorState.panels[emptyAt].photoIndex = newIndex;
+  else if (editorState.photos.length === 1) {
     for (const panel of editorState.panels) panel.photoIndex = 0;
   }
   renderThumbnails();
@@ -113,9 +111,7 @@ function renderThumbnails() {
     thumb.title = "Place this photo in the selected panel";
     const active = editorState.panels[editorState.selectedPanel];
     if (active && active.photoIndex === idx) thumb.classList.add("active");
-    thumb.addEventListener("click", () =>
-      placePhoto(idx, editorState.selectedPanel),
-    );
+    thumb.addEventListener("click", () => placePhoto(idx, editorState.selectedPanel));
     thumbContainer.appendChild(thumb);
   });
 }
@@ -139,8 +135,7 @@ function fillChipRow(containerId, options, activeId, onPick) {
   for (const opt of options) {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.className =
-      "chip" + (opt.id === activeId ? " active" : "") + ` chip-${containerId}`;
+    btn.className = "chip" + (opt.id === activeId ? " active" : "") + ` chip-${containerId}`;
     btn.textContent = opt.label;
     btn.addEventListener("click", () => onPick(opt.id));
     host.appendChild(btn);
@@ -150,37 +145,21 @@ function fillChipRow(containerId, options, activeId, onPick) {
 function refreshChipRows() {
   fillChipRow(
     "layoutGroup",
-    Object.entries(COVER_LAYOUTS).map(([id, def]) => ({
-      id,
-      label: def.label,
-    })),
+    Object.entries(COVER_LAYOUTS).map(([id, def]) => ({ id, label: def.label })),
     editorState.layout,
-    (id) => {
-      editorState.layout = id;
-      editorState.selectedPanel = 0;
-      paint();
-    },
+    (id) => { editorState.layout = id; editorState.selectedPanel = 0; paint(); },
   );
   fillChipRow(
     "gradeGroup",
-    Object.entries(COLOR_GRADES).map(([id, def]) => ({
-      id,
-      label: def.label,
-    })),
+    Object.entries(COLOR_GRADES).map(([id, def]) => ({ id, label: def.label })),
     editorState.grade,
-    (id) => {
-      editorState.grade = id;
-      paint();
-    },
+    (id) => { editorState.grade = id; paint(); },
   );
   fillChipRow(
     "sizeGroup",
     POST_SIZES.map((s) => ({ id: s.id, label: s.label })),
     editorState.sizeId,
-    (id) => {
-      editorState.sizeId = id;
-      paint();
-    },
+    (id) => { editorState.sizeId = id; paint(); },
   );
 }
 
@@ -306,22 +285,11 @@ canvasEl.addEventListener("pointerdown", (evt) => {
   const box = canvasEl.getBoundingClientRect();
   const px = ((evt.clientX - box.left) / box.width) * canvasEl.width;
   const py = ((evt.clientY - box.top) / box.height) * canvasEl.height;
-  const rects = panelRectsFor(
-    editorState.layout,
-    canvasEl.width,
-    canvasEl.height,
-  );
-  const hit = rects.findIndex(
-    (r) => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h,
-  );
+  const rects = panelRectsFor(editorState.layout, canvasEl.width, canvasEl.height);
+  const hit = rects.findIndex((r) => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h);
   if (hit >= 0) editorState.selectedPanel = hit;
   const current = editorState.panels[editorState.selectedPanel];
-  dragState = {
-    startX: evt.clientX,
-    startY: evt.clientY,
-    startPanX: current?.panX ?? 0,
-    startPanY: current?.panY ?? 0,
-  };
+  dragState = { startX: evt.clientX, startY: evt.clientY, startPanX: current?.panX ?? 0, startPanY: current?.panY ?? 0 };
   canvasEl.setPointerCapture(evt.pointerId);
   renderThumbnails();
   paint();
@@ -342,9 +310,7 @@ canvasEl.addEventListener("pointermove", (evt) => {
   drawCoverArt(canvasEl, editorState);
 });
 
-canvasEl.addEventListener("pointerup", () => {
-  dragState = null;
-});
+canvasEl.addEventListener("pointerup", () => { dragState = null; });
 
 document.getElementById("exportButton").addEventListener("click", () => {
   editorState.showSelection = false;
@@ -380,12 +346,10 @@ if (shotScene) {
   subtitleField.value = shotScene.subtitle;
   badgeField.value = shotScene.badge;
   starsSlider.value = String(shotScene.stars);
-
   if (shotScene.mode === "cover") {
     document.body.classList.add("shot-cover");
     editorState.showSelection = false;
   }
-
   editorState.photos = [];
   editorState.photoUrls = [];
   editorState.panels = [];
@@ -404,6 +368,5 @@ if (shotScene) {
   markShotReady();
 } else {
   await loadDemoSet();
-  statusEl.textContent =
-    "Demo cover ready — add your own photos to make it yours, then download the PNG.";
+  statusEl.textContent = "Demo cover ready — add your own photos to make it yours, then download the PNG.";
 }
