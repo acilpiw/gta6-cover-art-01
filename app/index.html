@@ -1,66 +1,117 @@
 <!doctype html>
-<!-- Neon Coast Cover Studio: controls in the sidebar, live canvas preview beside them. Every id here is wired in src/main.js -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Neon Coast Cover Studio — GTA-style cover art maker</title>
-<link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="layout">
-  <aside class="sidebar" aria-label="Cover controls">
-    <header class="masthead">
-      <div class="masthead-eyebrow">NEON COAST</div>
-      <h1 class="masthead-title">Cover Studio</h1>
-      <p class="masthead-lede">Drop in a photo, write a caption, and walk away with a multi-panel poster in the Vice City tradition. All processing stays in your browser — nothing leaves this page.</p>
-    </header>
-    <section class="card">
-      <h2 class="card-title">1 · Photos</h2>
-      <label class="dropzone">
-        <span>Add your photos</span>
-        <input id="photoInput" type="file" accept="image/*" multiple>
+<header id="topbar">
+  <div class="brand">
+    <span class="brand-mark">NC</span>
+    <div>
+      <h1>Neon Coast Cover Studio</h1>
+      <p>Turn your photos into multi-panel cover art. Everything stays on your machine.</p>
+    </div>
+  </div>
+  <div class="top-actions">
+    <div class="size-picker" role="group" aria-label="Post size">
+      <button type="button" class="size-btn" data-size="square">Square</button>
+      <button type="button" class="size-btn" data-size="portrait">Portrait</button>
+      <button type="button" class="size-btn" data-size="wide">Wide</button>
+    </div>
+    <button type="button" id="exportBtn" class="export-btn">Export PNG</button>
+  </div>
+</header>
+
+<main id="workspace">
+  <section id="stagePane">
+    <div id="stageWrap">
+      <canvas id="stage" width="1920" height="1080"></canvas>
+    </div>
+    <p id="stageHint">Drop photos anywhere on the cover to fill panels in order, or pick a panel below and upload into it.</p>
+    <p id="statusLine" role="status">Loading the sample photos…</p>
+  </section>
+
+  <aside id="controls">
+    <section class="control-block">
+      <h2>Layout</h2>
+      <div id="layoutBtns" class="btn-grid"></div>
+    </section>
+
+    <section class="control-block">
+      <h2>Colour grade</h2>
+      <div id="gradeBtns" class="btn-grid"></div>
+    </section>
+
+    <section class="control-block">
+      <h2>Lettering</h2>
+      <label class="field">Cover title
+        <input id="titleInput" type="text" maxlength="26" value="Neon Coast">
       </label>
-      <button id="demoButton" type="button" class="btn btn-quiet">Try the demo photos</button>
-      <div id="thumbStrip" class="thumbs" aria-label="Your photos"></div>
-      <p class="note">Select a panel first, then tap a thumbnail to assign it. You can also drag directly on the preview to reposition the active panel.</p>
-    </section>
-    <section class="card">
-      <h2 class="card-title">2 · Panels</h2>
-      <div id="layoutGroup" class="pills" role="group" aria-label="Layout"></div>
-      <div id="panelGroup" class="pills" role="group" aria-label="Panel"></div>
-      <label class="field"><span>Zoom</span><input id="zoomRange" type="range" min="1" max="3" step="0.01" value="1"></label>
-      <label class="field"><span>Pan across</span><input id="panXRange" type="range" min="-1" max="1" step="0.01" value="0"></label>
-      <label class="field"><span>Pan up / down</span><input id="panYRange" type="range" min="-1" max="1" step="0.01" value="0"></label>
-      <div class="split-buttons">
-        <button id="fillAllButton" type="button" class="btn btn-quiet">Fill all panels with this photo</button>
-        <button id="clearPanelButton" type="button" class="btn btn-quiet">Clear panel</button>
+      <label class="field">Script subtitle
+        <input id="subtitleInput" type="text" maxlength="42" value="vice nights, fast tides">
+      </label>
+      <label class="field">Ribbon badge
+        <input id="badgeInput" type="text" maxlength="20" value="Cover story">
+      </label>
+      <label class="field">Title size
+        <input id="titleScale" type="range" min="0.6" max="1.5" step="0.05" value="1">
+      </label>
+      <div class="field inline">
+        <span>Heat stars</span>
+        <span class="stepper">
+          <button type="button" id="starMinus" aria-label="Fewer stars">−</button>
+          <strong id="starCount">4</strong>
+          <button type="button" id="starPlus" aria-label="More stars">+</button>
+        </span>
       </div>
+      <label class="check"><input id="grainToggle" type="checkbox" checked> Film grain</label>
+      <label class="check"><input id="vignetteToggle" type="checkbox" checked> Vignette</label>
+      <label class="check"><input id="inkToggle" type="checkbox"> Inked poster punch</label>
     </section>
-    <section class="card">
-      <h2 class="card-title">3 · Look</h2>
-      <div id="gradeGroup" class="pills" role="group" aria-label="Colour grade"></div>
-      <label class="toggle"><input id="grainToggle" type="checkbox" checked><span>Film grain</span></label>
-      <label class="toggle"><input id="vignetteToggle" type="checkbox" checked><span>Vignette</span></label>
-      <label class="field"><span>Wanted stars</span><input id="starRange" type="range" min="0" max="5" step="1" value="3"></label>
-      <label class="field"><span>Badge</span><input id="badgeInput" type="text" maxlength="18" value="DAY ONE"></label>
+
+    <section class="control-block">
+      <h2>Panels &amp; photos</h2>
+      <div id="panelList" class="panel-list"></div>
+      <p id="selectedLabel" class="selected-label">Panel 1 selected</p>
+      <div class="btn-row">
+        <button type="button" id="uploadBtn">Upload photo…</button>
+        <button type="button" id="fillAllBtn">Fill all panels</button>
+      </div>
+      <div class="btn-row">
+        <button type="button" id="sampleBoulevardBtn">Sample: boulevard</button>
+        <button type="button" id="samplePierBtn">Sample: pier</button>
+      </div>
+      <div class="btn-row">
+        <button type="button" id="flipBtn">Flip photo</button>
+        <button type="button" id="resetPanelBtn">Reset crop</button>
+        <button type="button" id="clearPanelBtn">Clear panel</button>
+      </div>
+      <input id="photoInput" type="file" accept="image/*" multiple hidden>
+      <label class="field">Zoom
+        <input id="zoomRange" type="range" min="1" max="3" step="0.02" value="1">
+      </label>
+      <label class="field">Slide left / right
+        <input id="panXRange" type="range" min="-1" max="1" step="0.02" value="0">
+      </label>
+      <label class="field">Slide up / down
+        <input id="panYRange" type="range" min="-1" max="1" step="0.02" value="0">
+      </label>
     </section>
-    <section class="card">
-      <h2 class="card-title">4 · Words</h2>
-      <label class="field"><span>Caption</span><input id="captionInput" type="text" maxlength="26" value="NEON COAST"></label>
-      <label class="field"><span>Subtitle</span><input id="subtitleInput" type="text" maxlength="34" value="welcome back to the coast"></label>
-    </section>
-    <section class="card">
-      <h2 class="card-title">5 · Export</h2>
-      <div id="sizeGroup" class="pills" role="group" aria-label="Post size"></div>
-      <button id="exportButton" type="button" class="btn btn-export">Download PNG</button>
-      <p id="statusLine" class="status" role="status"></p>
+
+    <section class="control-block">
+      <button type="button" id="exportBtnBottom" class="export-btn wide-btn">Export this cover as PNG</button>
+      <p id="exportNote" class="export-note">Exports at 1920 x 1080.</p>
     </section>
   </aside>
-  <main class="preview" aria-label="Cover preview">
-    <canvas id="coverCanvas" width="1080" height="1350"></canvas>
-  </main>
-</div>
-<script type="module" src="./src/main.js"></script>
+</main>
+
+<footer id="pageFoot">
+  <p>An original fan-made tool. Not affiliated with any game publisher; no game artwork, logos or fonts are used. Your photos are read locally in your browser and never uploaded anywhere.</p>
+</footer>
+
+<script type="module" src="src/main.js"></script>
 </body>
 </html>
