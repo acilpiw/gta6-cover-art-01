@@ -4,52 +4,69 @@
 [![rank](https://make.fun/badge/gta6-cover-art-01/acilpiw/gta6-cover-art-01/rank.svg)](https://make.fun/bounty/gta6-cover-art-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
 [![reward](https://make.fun/badge/gta6-cover-art-01/acilpiw/gta6-cover-art-01/reward.svg)](https://make.fun/bounty/gta6-cover-art-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
 
-Entry for make.fun's "Make GTA 6 Cover Art" bounty
+Submission for the make.fun bounty **"Make GTA 6 Cover Art"**
 ([gta6-cover-art-01](https://make.fun/c/gta6-cover-art-01)).
 
-**Neon Coast Cover Studio** turns any photo and a caption into cover art in
-the multi-panel GTA poster style — and exports it as a PNG to share. It runs
-fully offline in a desktop browser from the static files in `app/`; photos
-are read on your own machine and never uploaded.
+Neon Coast Cover Studio is a browser-based poster maker in the multi-panel
+GTA cover tradition. Give it a photograph and a headline and it produces a
+finished, shareable cover as a PNG. The app is fully static — open `app/`
+in a desktop browser and everything runs locally; your images are never
+sent to a server.
 
-## What it does
+## Highlights
 
-- **Multi-panel layouts** — Hero Grid, Six Panel Grid, Vice Strips,
-  Top Story and Full Bleed, with clean poster gutters between panels.
-- **Any photo, every panel** — add several photos, tap a panel then a
-  thumbnail to place it, fill every panel with one photo, and crop each
-  panel with zoom and pan sliders or by dragging the cover itself.
-- **Vice City colour grades** — Sunset Vice, Neon Night, Golden Hour,
-  Midnight Noir and Clean Poster, plus film grain and a vignette.
-- **Poster lettering** — a big condensed caption with a gradient fill and
-  hard outline, a glowing neon script subtitle, a wanted-star row and a
-  rotated badge ribbon. All lettering is drawn on canvas with system
-  fonts; no game artwork, logo or font is used anywhere.
-- **Post sizes in one click** — export PNG at 1080 × 1080,
-  1080 × 1350 or 1920 × 1080.
-- **Demo mode** — two bundled sample photos (made with an image model,
-  free to use) open as a finished cover, so the studio can be tried with
-  no upload at all.
+- **Five panel layouts** — Hero Grid, Six Panel Grid, Vice Strips,
+  Top Story, and Full Bleed, separated by thin poster gutters. Empty
+  panels are filled with a painted sunset shoreline so a half-finished
+  grid still looks intentional.
+- **Per-panel art direction** — load multiple photos, click a panel and
+  then a thumbnail to place an image, broadcast one photo to every panel,
+  or clear a panel. Each panel keeps its own zoom and pan, adjustable
+  with sliders or by dragging the preview canvas directly.
+- **Five colour grades** — Sunset Vice, Neon Night, Golden Hour,
+  Midnight Noir, and Clean Poster. Each grade combines a photo filter,
+  a wash over the whole sheet, and a matching title palette. Optional
+  film grain (deterministic, so exports are reproducible) and vignette.
+- **Hand-set poster type** — the caption is set in a large condensed
+  face with a gradient fill, heavy outline, and drop shadow; the
+  subtitle glows above it in a script face. A five-star wanted meter
+  and a tilted badge ribbon complete the look. All type uses system
+  fonts rendered on canvas — no game assets, logos, or fonts.
+- **Three export sizes** — Square 1080 × 1080, Portrait 1080 × 1350,
+  and Wide 1920 × 1080, downloaded as a single PNG click.
+- **Instant demo** — two bundled sample photographs open as a ready-made
+  cover, so the studio can be evaluated without uploading anything.
 
-## Run it
+## Running locally
+
+Serve the static app (Node 22, no dependencies):
 
 ```sh
-node serve.ts          # serves app/ at http://localhost:8080
+node serve.ts
+# → http://localhost:8080
 ```
 
-Hand the entry in (Node 22, standard library only):
+Build the submission bundle:
 
 ```sh
 mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
 ```
 
-## Layout
+`main.ts` copies `app/` and `screenshots/` into the output directory and
+writes `dossier.json` using `vendor/makefun-app.ts`.
 
-- `app/` — the web app: `index.html`, `style.css`, `src/cover.js` (the
-  canvas cover engine), `src/main.js` (the editor), `src/shots.js`
-  (screenshot scenes), `samples/` (demo photos).
-- `screenshots/` — the exported covers and editor views the judge sees.
-- `main.ts` — copies `app/` and `screenshots/` to the output directory
-  and writes `dossier.json` with `vendor/makefun-app.ts`.
+## Repository map
 
-MIT licensed.
+| Path | Contents |
+| --- | --- |
+| `app/index.html` | Page shell and control markup |
+| `app/style.css` | Editor styling, including screenshot mode |
+| `app/src/cover.js` | Canvas rendering engine — layouts, grades, backdrop, lettering |
+| `app/src/main.js` | Editor state, control wiring, drag handling, PNG export |
+| `app/src/shots.js` | Fixed `?shot=` scenes for reproducible screenshots |
+| `app/samples/` | Demo photographs (AI-generated, free to use) |
+| `screenshots/` | Cover and editor captures shown to judges |
+| `main.ts` | Submission builder |
+| `serve.ts` | Local static server for `app/` |
+
+MIT licensed — see `LICENSE`.
