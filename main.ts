@@ -49,8 +49,10 @@ function checkInputs(): void {
 
 function main(): void {
   checkInputs();
-  rmSync(outputDir, { recursive: true, force: true });
   mkdirSync(outputDir, { recursive: true });
+  rmSync(join(outputDir, "app"), { recursive: true, force: true });
+  rmSync(join(outputDir, "screenshots"), { recursive: true, force: true });
+  rmSync(join(outputDir, "dossier.json"), { force: true });
   cpSync(join(repoRoot, "app"), join(outputDir, "app"), { recursive: true });
   cpSync(join(repoRoot, "screenshots"), join(outputDir, "screenshots"), { recursive: true });
   const dossier = buildDossier(outputDir, DOSSIER_CAPS);
