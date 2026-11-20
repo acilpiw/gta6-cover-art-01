@@ -1,73 +1,68 @@
 # Neon Coast Cover Studio
 
-[![make.fun · gta6-cover-art-01](https://make.fun/badge/gta6-cover-art-01.svg)](https://make.fun/bounty/gta6-cover-art-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
-[![rank](https://make.fun/badge/gta6-cover-art-01/acilpiw/gta6-cover-art-01/rank.svg)](https://make.fun/bounty/gta6-cover-art-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
-[![reward](https://make.fun/badge/gta6-cover-art-01/acilpiw/gta6-cover-art-01/reward.svg)](https://make.fun/bounty/gta6-cover-art-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
+[![make.fun](https://make.fun/badge/gta6-cover-art-01.svg)](https://make.fun/c/gta6-cover-art-01)
+[![rank](https://make.fun/rank.svg?repo=acilpiw/gta6-cover-art-01)](https://make.fun/c/gta6-cover-art-01)
+[![reward](https://make.fun/reward.svg?repo=acilpiw/gta6-cover-art-01)](https://make.fun/c/gta6-cover-art-01)
 
-Entry for the make.fun bounty **"Make GTA 6 Cover Art"**
-([gta6-cover-art-01](https://make.fun/c/gta6-cover-art-01)).
+An offline web app that turns your own photos and a caption into GTA-style
+multi-panel cover art — the classic poster grid with a white frame, a Vice
+City sunset or neon colour grade, heavy gradient lettering, a ribbon badge
+and heat stars — and exports it as a PNG in the sizes people actually post.
 
-Neon Coast Cover Studio is a poster maker in the multi-panel GTA
-cover tradition. Feed it your own photographs and a headline, and
-it hands back a finished cover as a PNG. The whole app is static
-files that run locally in a desktop browser; your images are
-never sent anywhere.
+Everything runs in the browser from static files. Photos are read on your
+own machine and never uploaded anywhere; there is no build step and the app
+makes no network requests.
 
-## Highlights
+## What it does
 
-- **Five layouts** — Hero Grid, Six Panel Grid, Vice Strips,
-  Top Story, and Full Bleed, split by thin poster gutters.
-  Empty panels are painted with a sunset shoreline and a palm
-  silhouette, so a half-finished cover still looks deliberate.
-- **Per-panel editing** — load multiple photos, select a panel
-  and tap a thumbnail to place an image, send one photo to all
-  panels, or clear a panel. Every panel keeps its own zoom and
-  pan, set with sliders or by dragging on the preview itself.
-- **Five colour grades** — Sunset Vice, Neon Night, Golden Hour,
-  Midnight Noir, and Clean Poster. Each grade bundles a photo
-  filter, a wash over the assembled sheet, and a title palette.
-  Film grain is seeded for reproducible exports; vignette is
-  optional.
-- **Poster type set by hand** — the caption uses a large
-  condensed face with gradient fill, heavy outline and shadow;
-  the subtitle glows above it in script. A wanted-star row and
-  a tilted badge ribbon finish the sheet. System fonts only,
-  rendered on canvas — no game assets, logos, or fonts.
-- **Three export sizes** — Square 1080 × 1080, Portrait
-  1080 × 1350, and Wide 1920 × 1080, downloaded as one PNG.
-- **Demo ready on open** — two bundled sample photographs load
-  as a finished cover, so the studio can be tried with no upload.
+- **Five panel layouts** — a six-panel cover grid, hero + three, film
+  strips, a five-panel mosaic and a full-bleed single panel.
+- **Any photo, every panel** — upload or drag-and-drop photos, fill several
+  panels with one photo or a different photo per panel, then crop each
+  panel with zoom and slide controls, flip, reset or clear per panel.
+- **Five colour grades** — Vice sunset, Neon night, Golden hour, Mono noir
+  and Clean print, plus optional film grain, vignette and an inked poster
+  punch.
+- **Lettering you control** — cover title with a sunset-gradient fill and
+  white keyline, a script subtitle, a tilted ribbon badge and a heat-star
+  rating, all editable live.
+- **Post-ready exports** — one click writes a PNG at 1080 x 1080,
+  1080 x 1350 or 1920 x 1080.
+- Two bundled sample photos (AI-made, free to use) fill the panels until
+  you drop in your own.
 
-## Running it locally
-
-Serve the static app with Node 22, no dependencies to install:
+## Run it
 
 ```sh
 node serve.ts
-# → http://localhost:8080
 ```
 
-Build the submission bundle:
+Then open http://localhost:8080. Any static file server pointed at `app/`
+works just as well.
+
+## Hand it in
 
 ```sh
-mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+MAKEFUN_OUTPUT_DIR=out node main.ts
 ```
 
-`main.ts` copies `app/` and `screenshots/` into the output
-directory and writes `dossier.json` using `vendor/makefun-app.ts`.
+`main.ts` copies `app/` and `screenshots/` to the output directory and
+writes `dossier.json` there with the kit's `buildDossier`
+(`vendor/makefun-app.ts`, unchanged) under the scorer's caps.
 
-## Repository map
+## Screenshots
 
-| Path | Contents |
-| --- | --- |
-| `app/index.html` | Page shell and control markup |
-| `app/style.css` | Editor styling, including screenshot mode |
-| `app/src/cover.js` | Canvas rendering — layouts, grades, backdrop, lettering |
-| `app/src/main.js` | Editor state, control wiring, drag handling, PNG export |
-| `app/src/shots.js` | Fixed `?shot=` scenes for reproducible screenshots |
-| `app/samples/` | Demo photographs (AI-generated, free to use) |
-| `screenshots/` | Cover and editor captures shown to judges |
-| `main.ts` | Submission builder |
-| `serve.ts` | Local static server for `app/` |
+`screenshots/` holds four captures of the running app, described in
+`shots.json`: an exported wide cover, the editor with photos loaded, an
+exported portrait cover and an exported square cover. Each is produced by
+opening the app with its `?shot=` scene (see `app/src/shots.js`).
 
-MIT licensed — see `LICENSE`.
+## Originality
+
+The studio, its lettering and its painted panel backdrops are original work
+for this entry. No game artwork, logos, wordmarks or font files are used;
+the lettering is drawn with system font stacks only.
+
+## License
+
+MIT — see `LICENSE`.

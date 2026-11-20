@@ -1,6 +1,10 @@
+# Neon Coast Cover Studio — local build artefacts stay out of git
 node_modules/
 out/
-out2/
 output/
-.DS_Store
+.dossier-check/
 *.log
+.DS_Store
+Thumbs.db
+.playwright/
+screenshots/.tmp/

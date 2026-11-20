@@ -1,69 +1,61 @@
-// Builder for the Neon Coast Cover Studio submission (gta6-cover-art-01).
-// Copies app/ and screenshots/ into the output directory, sanity checks
-// the result, then writes dossier.json using the vendored helper.
-// Local check: mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
+// main.ts — hands in the Neon Coast Cover Studio entry.
+// Copies app/ and screenshots/ from this repository into the output
+// directory and writes dossier.json there with the kit's buildDossier,
+// using the scorer's caps from the competition rules: the dossier text is
+// capped at 160 KiB, at most 4 screenshots of at most 256 KiB each, and
+// app/ holds at most 993 entries totalling at most 48 MiB with no path
+// longer than 1000 bytes. Node standard library only; the run is a pure
+// copy plus the dossier build, so two runs write the same bytes.
 
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildDossier } from "./vendor/makefun-app.ts";
 
-const rootDir = fileURLToPath(new URL(".", import.meta.url));
-const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
+const repoRoot = dirname(fileURLToPath(import.meta.url));
+const outputDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
 
-const CAPS = {
-  text_max_bytes: 163840,
-  screenshots: { max: 4, max_bytes: 262144 },
+const DOSSIER_CAPS = {
+  text_max_bytes: 163_840,
+  screenshots: { max: 4, max_bytes: 262_144 },
   app_max_files: 993,
-  app_max_bytes: 50331648,
+  app_max_bytes: 48 * 1024 * 1024,
   app_path_max_bytes: 1000,
 };
 
-mkdirSync(outDir, { recursive: true });
-cpSync(join(rootDir, "app"), join(outDir, "app"), { recursive: true });
-
-mkdirSync(join(outDir, "screenshots"), { recursive: true });
-const shotsSource = join(rootDir, "screenshots");
-if (existsSync(shotsSource)) {
-  cpSync(shotsSource, join(outDir, "screenshots"), { recursive: true });
-}
-
-if (!existsSync(join(outDir, "app", "index.html"))) {
-  throw new Error("app/index.html missing after copy");
-}
-
-const imageRe = /\.(png|jpe?g)$/i;
-const shotNames = readdirSync(join(outDir, "screenshots"))
-  .filter((name) => imageRe.test(name))
-  .sort();
-if (shotNames.length < 3 || shotNames.length > 4) {
-  throw new Error(`expected 3 or 4 screenshots, found ${shotNames.length}`);
-}
-
-// Revision: validate screenshots up front instead of letting a bad file
-// fail opaquely inside the dossier builder. Empty, oversized, or
-// mis-labelled images now name themselves in the error, and the required
-// app modules are checked so a partial copy cannot ship a blank studio.
-let totalShotBytes = 0;
-for (const name of shotNames) {
-  const filePath = join(outDir, "screenshots", name);
-  const size = statSync(filePath).size;
-  if (size === 0) throw new Error(`screenshot ${name} is empty`);
-  if (size > CAPS.screenshots.max_bytes) {
-    throw new Error(`screenshot ${name} is ${size} bytes, over the ${CAPS.screenshots.max_bytes} byte limit`);
+// Pre-flight checks, added after the first verified build: fail loudly
+// here, with the file named, instead of handing the scorer an entry it
+// would refuse. Screenshots must number 3 or 4, sit under the 256 KiB cap
+// and carry real PNG or JPEG magic bytes — a renamed or truncated file
+// would otherwise pass the copy and fail the gate in silence.
+function checkInputs(): void {
+  const indexHtml = join(repoRoot, "app", "index.html");
+  if (!existsSync(indexHtml)) throw new Error(`missing required file: ${indexHtml}`);
+  const shotsDir = join(repoRoot, "screenshots");
+  const shots = readdirSync(shotsDir).filter((name) => !name.startsWith(".")).sort();
+  if (shots.length < 3 || shots.length > 4) {
+    throw new Error(`screenshots/ must hold 3 or 4 images, found ${shots.length}`);
   }
-  const head = readFileSync(filePath).subarray(0, 3);
-  const isJpeg = head[0] === 0xff && head[1] === 0xd8 && head[2] === 0xff;
-  const isPng = head[0] === 0x89 && head[1] === 0x50 && head[2] === 0x4e;
-  if (!isJpeg && !isPng) throw new Error(`screenshot ${name} is neither JPEG nor PNG`);
-  totalShotBytes += size;
-}
-for (const required of ["src/cover.js", "src/main.js", "src/shots.js", "style.css"]) {
-  if (!existsSync(join(outDir, "app", required))) {
-    throw new Error(`app/${required} missing after copy`);
+  for (const name of shots) {
+    const bytes = readFileSync(join(shotsDir, name));
+    if (bytes.length > DOSSIER_CAPS.screenshots.max_bytes) {
+      throw new Error(`screenshot ${name} is ${bytes.length} bytes, over the 262144 cap`);
+    }
+    const isPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+    const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    if (!isPng && !isJpeg) throw new Error(`screenshot ${name} is neither a PNG nor a JPEG`);
   }
 }
 
-const dossier = buildDossier(outDir, CAPS);
-writeFileSync(join(outDir, "dossier.json"), dossier);
-console.log(`Neon Coast Cover Studio -> ${outDir} (${shotNames.length} screenshots, ${totalShotBytes} bytes total, dossier.json written)`);
+function main(): void {
+  checkInputs();
+  rmSync(outputDir, { recursive: true, force: true });
+  mkdirSync(outputDir, { recursive: true });
+  cpSync(join(repoRoot, "app"), join(outputDir, "app"), { recursive: true });
+  cpSync(join(repoRoot, "screenshots"), join(outputDir, "screenshots"), { recursive: true });
+  const dossier = buildDossier(outputDir, DOSSIER_CAPS);
+  writeFileSync(join(outputDir, "dossier.json"), dossier);
+  console.log(`Neon Coast Cover Studio handed in: dossier.json ${dossier.length} bytes -> ${outputDir}`);
+}
+
+main();
