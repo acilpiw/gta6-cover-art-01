@@ -1,27 +1,44 @@
-// Neon Coast Cover Studio — the editor wiring.
-// Owns the cover state (photos, per-panel crop views, layout, grade, words),
-// keeps the control chips and sliders in step with it, redraws the live
-// preview on every change, and exports the sheet as a PNG at full post size.
-// Photos are read with object URLs on this machine only; nothing is sent
-// anywhere. A ?shot= query builds a fixed scene for screenshots instead.
+// main.js — editor controller for Neon Coast Cover Studio.
+//
+// Responsibilities:
+//   * hold the single mutable cover state (photos, panel crops, layout,
+//     grade, wording, effects)
+//   * build and keep in sync every control in the sidebar (chips, sliders,
+//     thumbnails, text fields)
+//   * repaint the canvas through cover.js whenever state changes
+//   * handle pointer dragging on the preview for quick re-cropping
+//   * export the current sheet as a full-resolution PNG
+//   * boot either into a fixed ?shot= scene (for screenshots) or into the
+//     demo cover built from the two bundled samples
+//
+// Privacy note: user photos are turned into object URLs and drawn locally.
+// Nothing in this file performs a network request for photo data.
 
-import { COLOR_GRADES, COVER_LAYOUTS, POST_SIZES, drawCoverArt, panelRectsFor } from './cover.js';
+import {
+  COLOR_GRADES,
+  COVER_LAYOUTS,
+  POST_SIZES,
+  drawCoverArt,
+  panelRectsFor,
+} from './cover.js';
 import { markShotReady, readShotScene } from './shots.js';
 
-const canvas = document.getElementById('coverCanvas');
-const statusLine = document.getElementById('statusLine');
-const captionInput = document.getElementById('captionInput');
-const subtitleInput = document.getElementById('subtitleInput');
-const badgeInput = document.getElementById('badgeInput');
-const starRange = document.getElementById('starRange');
-const zoomRange = document.getElementById('zoomRange');
-const panXRange = document.getElementById('panXRange');
-const panYRange = document.getElementById('panYRange');
-const grainToggle = document.getElementById('grainToggle');
-const vignetteToggle = document.getElementById('vignetteToggle');
-const thumbStrip = document.getElementById('thumbStrip');
+// --- DOM handles -----------------------------------------------------------
+const canvasEl = document.getElementById('coverCanvas');
+const statusEl = document.getElementById('statusLine');
+const captionField = document.getElementById('captionInput');
+const subtitleField = document.getElementById('subtitleInput');
+const badgeField = document.getElementById('badgeInput');
+const starsSlider = document.getElementById('starRange');
+const zoomSlider = document.getElementById('zoomRange');
+const panXSlider = document.getElementById('panXRange');
+const panYSlider = document.getElementById('panYRange');
+const grainBox = document.getElementById('grainToggle');
+const vignetteBox = document.getElementById('vignetteToggle');
+const thumbContainer = document.getElementById('thumbStrip');
 
-const state = {
+// --- State -----------------------------------------------------------------
+const editorState = {
   sizeId: 'portrait',
   layout: 'heroGrid',
   grade: 'sunset',
@@ -29,310 +46,379 @@ const state = {
   photoUrls: [],
   panels: [],
   selectedPanel: 0,
-  caption: captionInput.value,
-  subtitle: subtitleInput.value,
-  badge: badgeInput.value,
-  stars: Number(starRange.value),
-  grain: grainToggle.checked,
-  vignette: vignetteToggle.checked,
+  caption: captionField.value,
+  subtitle: subtitleField.value,
+  badge: badgeField.value,
+  stars: Number(starsSlider.value),
+  grain: grainBox.checked,
+  vignette: vignetteBox.checked,
   showSelection: true,
 };
 
-function panelCount() {
-  const size = POST_SIZES.find((s) => s.id === state.sizeId) ?? POST_SIZES[0];
-  return panelRectsFor(state.layout, size.width, size.height).length;
+function lookupSize(id) {
+  return POST_SIZES.find((s) => s.id === id) || POST_SIZES[0];
 }
 
-// Keeps the panel list the size of the current layout, preserving the crops
-// already set and giving new panels the next photo round-robin.
-function syncPanels() {
-  const count = panelCount();
-  while (state.panels.length < count) {
-    const index = state.panels.length;
-    state.panels.push({
-      photoIndex: state.photos.length ? index % state.photos.length : -1,
+function howManyPanels() {
+  const { width, height } = lookupSize(editorState.sizeId);
+  return panelRectsFor(editorState.layout, width, height).length;
+}
+
+// Grow or shrink the panels array to match the active layout. Existing
+// crops survive a layout switch where possible; brand-new panels are
+// seeded round-robin from whatever photos are already loaded.
+function ensurePanelCount() {
+  const wanted = howManyPanels();
+  while (editorState.panels.length < wanted) {
+    const idx = editorState.panels.length;
+    editorState.panels.push({
+      photoIndex: editorState.photos.length ? idx % editorState.photos.length : -1,
       zoom: 1,
       panX: 0,
       panY: 0,
     });
   }
-  state.panels.length = count;
-  if (state.selectedPanel >= count) state.selectedPanel = 0;
+  editorState.panels.length = wanted;
+  if (editorState.selectedPanel >= wanted) editorState.selectedPanel = 0;
 }
 
-function currentSize() {
-  return POST_SIZES.find((s) => s.id === state.sizeId) ?? POST_SIZES[0];
+function paint() {
+  ensurePanelCount();
+  const size = lookupSize(editorState.sizeId);
+  if (canvasEl.width !== size.width) canvasEl.width = size.width;
+  if (canvasEl.height !== size.height) canvasEl.height = size.height;
+  drawCoverArt(canvasEl, editorState);
+  rebuildPanelChips();
+  reflectCropInSliders();
 }
 
-function redraw() {
-  syncPanels();
-  const size = currentSize();
-  if (canvas.width !== size.width) canvas.width = size.width;
-  if (canvas.height !== size.height) canvas.height = size.height;
-  drawCoverArt(canvas, state);
-  buildPanelChips();
-  syncCropSliders();
-}
-
-// Loads an image from a URL and resolves once it can be drawn.
+// --- Image loading ---------------------------------------------------------
 export function loadImageFromUrl(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
+    img.addEventListener('load', () => resolve(img));
+    img.addEventListener('error', reject);
     img.src = url;
   });
 }
 
-// Adds a loaded photo to the library, refreshes the thumbnails, and fills
-// the first empty panel with it so a fresh upload shows up at once.
 export function addPhoto(image, url) {
-  state.photos.push(image);
-  state.photoUrls.push(url);
-  const photoIndex = state.photos.length - 1;
-  syncPanels();
-  const empty = state.panels.findIndex((p) => p.photoIndex < 0);
-  if (empty >= 0) state.panels[empty].photoIndex = photoIndex;
-  else if (state.photos.length === 1) state.panels.forEach((p) => { p.photoIndex = 0; });
-  renderThumbs();
-  redraw();
-  return photoIndex;
+  editorState.photos.push(image);
+  editorState.photoUrls.push(url);
+  const newIndex = editorState.photos.length - 1;
+  ensurePanelCount();
+  const firstEmpty = editorState.panels.findIndex((p) => p.photoIndex < 0);
+  if (firstEmpty !== -1) {
+    editorState.panels[firstEmpty].photoIndex = newIndex;
+  } else if (editorState.photos.length === 1) {
+    for (const panel of editorState.panels) panel.photoIndex = 0;
+  }
+  renderThumbnails();
+  paint();
+  return newIndex;
 }
 
-function renderThumbs() {
-  thumbStrip.innerHTML = '';
-  state.photoUrls.forEach((url, index) => {
-    const img = document.createElement('img');
-    img.src = url;
-    img.alt = `Photo ${index + 1}`;
-    img.title = 'Put this photo in the selected panel';
-    const panel = state.panels[state.selectedPanel];
-    if (panel && panel.photoIndex === index) img.classList.add('active');
-    img.addEventListener('click', () => assignPhotoToPanel(index, state.selectedPanel));
-    thumbStrip.appendChild(img);
+function renderThumbnails() {
+  thumbContainer.replaceChildren();
+  editorState.photoUrls.forEach((url, idx) => {
+    const thumb = document.createElement('img');
+    thumb.src = url;
+    thumb.alt = `Photo ${idx + 1}`;
+    thumb.title = 'Place this photo in the selected panel';
+    const activePanel = editorState.panels[editorState.selectedPanel];
+    if (activePanel && activePanel.photoIndex === idx) {
+      thumb.classList.add('active');
+    }
+    thumb.addEventListener('click', () => placePhoto(idx, editorState.selectedPanel));
+    thumbContainer.appendChild(thumb);
   });
 }
 
-// Puts photo `photoIndex` into panel `panelIndex` with a centred crop.
-export function assignPhotoToPanel(photoIndex, panelIndex) {
-  syncPanels();
-  const panel = state.panels[panelIndex];
-  if (!panel) return;
-  panel.photoIndex = photoIndex;
-  panel.zoom = 1;
-  panel.panX = 0;
-  panel.panY = 0;
-  state.selectedPanel = panelIndex;
-  renderThumbs();
-  redraw();
+export function placePhoto(photoIndex, panelIndex) {
+  ensurePanelCount();
+  const target = editorState.panels[panelIndex];
+  if (!target) return;
+  target.photoIndex = photoIndex;
+  target.zoom = 1;
+  target.panX = 0;
+  target.panY = 0;
+  editorState.selectedPanel = panelIndex;
+  renderThumbnails();
+  paint();
 }
 
-function buildChipGroup(containerId, entries, activeId, onPick) {
-  const box = document.getElementById(containerId);
-  box.innerHTML = '';
-  for (const entry of entries) {
-    const chip = document.createElement('button');
-    chip.type = 'button';
-    chip.className = `chip${entry.id === activeId ? ' active' : ''} chip-${containerId}`;
-    chip.textContent = entry.label;
-    chip.addEventListener('click', () => onPick(entry.id));
-    box.appendChild(chip);
+// --- Chip groups -----------------------------------------------------------
+function populateChipRow(containerId, options, activeId, handler) {
+  const host = document.getElementById(containerId);
+  host.replaceChildren();
+  for (const opt of options) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'chip' + (opt.id === activeId ? ' active' : '') + ` chip-${containerId}`;
+    btn.textContent = opt.label;
+    btn.addEventListener('click', () => handler(opt.id));
+    host.appendChild(btn);
   }
 }
 
-function refreshChipGroups() {
-  buildChipGroup('layoutGroup', Object.entries(COVER_LAYOUTS).map(([id, v]) => ({ id, label: v.label })), state.layout, (id) => {
-    state.layout = id;
-    state.selectedPanel = 0;
-    redraw();
-  });
-  buildChipGroup('gradeGroup', Object.entries(COLOR_GRADES).map(([id, v]) => ({ id, label: v.label })), state.grade, (id) => {
-    state.grade = id;
-    redraw();
-  });
-  buildChipGroup('sizeGroup', POST_SIZES.map((s) => ({ id: s.id, label: s.label })), state.sizeId, (id) => {
-    state.sizeId = id;
-    redraw();
-  });
+function refreshAllChipRows() {
+  populateChipRow(
+    'layoutGroup',
+    Object.entries(COVER_LAYOUTS).map(([id, def]) => ({ id, label: def.label })),
+    editorState.layout,
+    (id) => {
+      editorState.layout = id;
+      editorState.selectedPanel = 0;
+      paint();
+    },
+  );
+  populateChipRow(
+    'gradeGroup',
+    Object.entries(COLOR_GRADES).map(([id, def]) => ({ id, label: def.label })),
+    editorState.grade,
+    (id) => {
+      editorState.grade = id;
+      paint();
+    },
+  );
+  populateChipRow(
+    'sizeGroup',
+    POST_SIZES.map((s) => ({ id: s.id, label: s.label })),
+    editorState.sizeId,
+    (id) => {
+      editorState.sizeId = id;
+      paint();
+    },
+  );
 }
 
-function buildPanelChips() {
-  const box = document.getElementById('panelGroup');
-  const count = panelCount();
-  if (box.childElementCount !== count) {
-    box.innerHTML = '';
-    for (let i = 0; i < count; i += 1) {
+function rebuildPanelChips() {
+  const host = document.getElementById('panelGroup');
+  const total = howManyPanels();
+  if (host.childElementCount !== total) {
+    host.replaceChildren();
+    for (let i = 0; i < total; i += 1) {
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.textContent = `Panel ${i + 1}`;
       chip.addEventListener('click', () => {
-        state.selectedPanel = i;
-        renderThumbs();
-        redraw();
+        editorState.selectedPanel = i;
+        renderThumbnails();
+        paint();
       });
-      box.appendChild(chip);
+      host.appendChild(chip);
     }
   }
-  [...box.children].forEach((chip, i) => chip.classList.toggle('active', i === state.selectedPanel));
+  Array.from(host.children).forEach((el, i) => {
+    el.classList.toggle('active', i === editorState.selectedPanel);
+  });
 }
 
-function syncCropSliders() {
-  const panel = state.panels[state.selectedPanel];
+// --- Crop sliders ----------------------------------------------------------
+function reflectCropInSliders() {
+  const panel = editorState.panels[editorState.selectedPanel];
   if (!panel) return;
-  zoomRange.value = String(panel.zoom);
-  panXRange.value = String(panel.panX);
-  panYRange.value = String(panel.panY);
+  zoomSlider.value = String(panel.zoom);
+  panXSlider.value = String(panel.panX);
+  panYSlider.value = String(panel.panY);
 }
 
-function applyCropFromSliders() {
-  const panel = state.panels[state.selectedPanel];
+function pushSliderValuesToPanel() {
+  const panel = editorState.panels[editorState.selectedPanel];
   if (!panel) return;
-  panel.zoom = Number(zoomRange.value);
-  panel.panX = Number(panXRange.value);
-  panel.panY = Number(panYRange.value);
-  drawCoverArt(canvas, state);
+  panel.zoom = Number(zoomSlider.value);
+  panel.panX = Number(panXSlider.value);
+  panel.panY = Number(panYSlider.value);
+  drawCoverArt(canvasEl, editorState);
 }
 
-document.getElementById('photoInput').addEventListener('change', async (event) => {
-  const files = [...event.target.files];
-  for (const file of files) {
-    const url = URL.createObjectURL(file);
-    addPhoto(await loadImageFromUrl(url), url);
+// --- Sidebar events --------------------------------------------------------
+document.getElementById('photoInput').addEventListener('change', async (evt) => {
+  const chosen = Array.from(evt.target.files || []);
+  for (const file of chosen) {
+    const blobUrl = URL.createObjectURL(file);
+    const img = await loadImageFromUrl(blobUrl);
+    addPhoto(img, blobUrl);
   }
-  if (files.length) statusLine.textContent = `${files.length} photo${files.length > 1 ? 's' : ''} added — tap a panel, then a thumbnail to place one.`;
+  if (chosen.length > 0) {
+    statusEl.textContent =
+      `${chosen.length} photo${chosen.length > 1 ? 's' : ''} added — ` +
+      'pick a panel, then tap a thumbnail to place one.';
+  }
 });
 
 document.getElementById('demoButton').addEventListener('click', async () => {
-  await loadDemoPhotos();
-  statusLine.textContent = 'Demo photos loaded. Swap in your own any time.';
+  await loadDemoSet();
+  statusEl.textContent = 'Demo photos loaded. Swap in your own any time.';
 });
 
-// The two bundled sample photos (made with an image model, free to use) fill
-// the panels alternately so the studio opens as a finished cover.
-export async function loadDemoPhotos() {
-  state.photos = [];
-  state.photoUrls = [];
-  state.panels = [];
-  for (const name of ['boulevard', 'pier']) {
-    const url = `samples/${name}.jpg`;
-    const image = await loadImageFromUrl(url);
-    state.photos.push(image);
-    state.photoUrls.push(url);
+// The bundled samples let the studio open on a finished-looking cover
+// instead of an empty grid. They alternate across the panels.
+export async function loadDemoSet() {
+  editorState.photos = [];
+  editorState.photoUrls = [];
+  editorState.panels = [];
+  for (const stem of ['boulevard', 'pier']) {
+    const url = `samples/${stem}.jpg`;
+    const img = await loadImageFromUrl(url);
+    editorState.photos.push(img);
+    editorState.photoUrls.push(url);
   }
-  syncPanels();
-  state.panels.forEach((panel, index) => { panel.photoIndex = index % state.photos.length; });
-  renderThumbs();
-  redraw();
+  ensurePanelCount();
+  editorState.panels.forEach((panel, i) => {
+    panel.photoIndex = i % editorState.photos.length;
+  });
+  renderThumbnails();
+  paint();
 }
 
 document.getElementById('fillAllButton').addEventListener('click', () => {
-  const panel = state.panels[state.selectedPanel];
-  if (!panel || panel.photoIndex < 0) return;
-  state.panels.forEach((p) => { p.photoIndex = panel.photoIndex; });
-  redraw();
+  const source = editorState.panels[editorState.selectedPanel];
+  if (!source || source.photoIndex < 0) return;
+  for (const panel of editorState.panels) panel.photoIndex = source.photoIndex;
+  paint();
 });
 
 document.getElementById('clearPanelButton').addEventListener('click', () => {
-  const panel = state.panels[state.selectedPanel];
+  const panel = editorState.panels[editorState.selectedPanel];
   if (panel) panel.photoIndex = -1;
-  renderThumbs();
-  redraw();
+  renderThumbnails();
+  paint();
 });
 
-for (const slider of [zoomRange, panXRange, panYRange]) slider.addEventListener('input', applyCropFromSliders);
-captionInput.addEventListener('input', () => { state.caption = captionInput.value; drawCoverArt(canvas, state); });
-subtitleInput.addEventListener('input', () => { state.subtitle = subtitleInput.value; drawCoverArt(canvas, state); });
-badgeInput.addEventListener('input', () => { state.badge = badgeInput.value; drawCoverArt(canvas, state); });
-starRange.addEventListener('input', () => { state.stars = Number(starRange.value); drawCoverArt(canvas, state); });
-grainToggle.addEventListener('change', () => { state.grain = grainToggle.checked; drawCoverArt(canvas, state); });
-vignetteToggle.addEventListener('change', () => { state.vignette = vignetteToggle.checked; drawCoverArt(canvas, state); });
-
-// Dragging on the preview pans the selected panel's photo; a plain click
-// selects the panel under the pointer.
-let dragStart = null;
-canvas.addEventListener('pointerdown', (event) => {
-  const rect = canvas.getBoundingClientRect();
-  const x = ((event.clientX - rect.left) / rect.width) * canvas.width;
-  const y = ((event.clientY - rect.top) / rect.height) * canvas.height;
-  const rects = panelRectsFor(state.layout, canvas.width, canvas.height);
-  const hit = rects.findIndex((r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h);
-  if (hit >= 0) state.selectedPanel = hit;
-  dragStart = { x: event.clientX, y: event.clientY, panX: state.panels[state.selectedPanel]?.panX ?? 0, panY: state.panels[state.selectedPanel]?.panY ?? 0 };
-  canvas.setPointerCapture(event.pointerId);
-  renderThumbs();
-  redraw();
-});
-canvas.addEventListener('pointermove', (event) => {
-  if (!dragStart) return;
-  const panel = state.panels[state.selectedPanel];
-  if (!panel || panel.photoIndex < 0) return;
-  const rect = canvas.getBoundingClientRect();
-  panel.panX = Math.max(-1, Math.min(1, dragStart.panX + ((event.clientX - dragStart.x) / rect.width) * 2.2));
-  panel.panY = Math.max(-1, Math.min(1, dragStart.panY + ((event.clientY - dragStart.y) / rect.height) * 2.2));
-  syncCropSlidersValuesOnly(panel);
-  drawCoverArt(canvas, state);
-});
-canvas.addEventListener('pointerup', () => { dragStart = null; });
-
-function syncCropSlidersValuesOnly(panel) {
-  zoomRange.value = String(panel.zoom);
-  panXRange.value = String(panel.panX);
-  panYRange.value = String(panel.panY);
+for (const slider of [zoomSlider, panXSlider, panYSlider]) {
+  slider.addEventListener('input', pushSliderValuesToPanel);
 }
+captionField.addEventListener('input', () => {
+  editorState.caption = captionField.value;
+  drawCoverArt(canvasEl, editorState);
+});
+subtitleField.addEventListener('input', () => {
+  editorState.subtitle = subtitleField.value;
+  drawCoverArt(canvasEl, editorState);
+});
+badgeField.addEventListener('input', () => {
+  editorState.badge = badgeField.value;
+  drawCoverArt(canvasEl, editorState);
+});
+starsSlider.addEventListener('input', () => {
+  editorState.stars = Number(starsSlider.value);
+  drawCoverArt(canvasEl, editorState);
+});
+grainBox.addEventListener('change', () => {
+  editorState.grain = grainBox.checked;
+  drawCoverArt(canvasEl, editorState);
+});
+vignetteBox.addEventListener('change', () => {
+  editorState.vignette = vignetteBox.checked;
+  drawCoverArt(canvasEl, editorState);
+});
 
-// Exports the sheet exactly as previewed, minus the selection outline, as a
-// PNG named for its size.
+// --- Canvas pointer interaction --------------------------------------------
+// Click selects the panel under the pointer; drag pans that panel's photo.
+// Pan deltas are scaled so a full-width drag covers roughly the slider range.
+let dragSession = null;
+
+canvasEl.addEventListener('pointerdown', (evt) => {
+  const box = canvasEl.getBoundingClientRect();
+  const px = ((evt.clientX - box.left) / box.width) * canvasEl.width;
+  const py = ((evt.clientY - box.top) / box.height) * canvasEl.height;
+  const rects = panelRectsFor(editorState.layout, canvasEl.width, canvasEl.height);
+  const hitIdx = rects.findIndex(
+    (r) => px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h,
+  );
+  if (hitIdx >= 0) editorState.selectedPanel = hitIdx;
+  const current = editorState.panels[editorState.selectedPanel];
+  dragSession = {
+    startClientX: evt.clientX,
+    startClientY: evt.clientY,
+    startPanX: current?.panX ?? 0,
+    startPanY: current?.panY ?? 0,
+  };
+  canvasEl.setPointerCapture(evt.pointerId);
+  renderThumbnails();
+  paint();
+});
+
+canvasEl.addEventListener('pointermove', (evt) => {
+  if (!dragSession) return;
+  const panel = editorState.panels[editorState.selectedPanel];
+  if (!panel || panel.photoIndex < 0) return;
+  const box = canvasEl.getBoundingClientRect();
+  const dx = ((evt.clientX - dragSession.startClientX) / box.width) * 2.2;
+  const dy = ((evt.clientY - dragSession.startClientY) / box.height) * 2.2;
+  panel.panX = Math.max(-1, Math.min(1, dragSession.startPanX + dx));
+  panel.panY = Math.max(-1, Math.min(1, dragSession.startPanY + dy));
+  zoomSlider.value = String(panel.zoom);
+  panXSlider.value = String(panel.panX);
+  panYSlider.value = String(panel.panY);
+  drawCoverArt(canvasEl, editorState);
+});
+
+canvasEl.addEventListener('pointerup', () => {
+  dragSession = null;
+});
+
+// --- Export ----------------------------------------------------------------
 document.getElementById('exportButton').addEventListener('click', () => {
-  state.showSelection = false;
-  drawCoverArt(canvas, state);
-  canvas.toBlob((blob) => {
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    const size = currentSize();
-    link.href = url;
-    link.download = `neon-coast-cover-${size.width}x${size.height}.png`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(url), 4000);
-    statusLine.textContent = `Saved neon-coast-cover-${size.width}x${size.height}.png — post it anywhere.`;
-    state.showSelection = true;
-    drawCoverArt(canvas, state);
+  editorState.showSelection = false;
+  drawCoverArt(canvasEl, editorState);
+  canvasEl.toBlob((blob) => {
+    if (!blob) return;
+    const size = lookupSize(editorState.sizeId);
+    const filename = `neon-coast-cover-${size.width}x${size.height}.png`;
+    const href = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = href;
+    anchor.download = filename;
+    anchor.click();
+    window.setTimeout(() => URL.revokeObjectURL(href), 4000);
+    statusEl.textContent = `Saved ${filename} — post it anywhere.`;
+    editorState.showSelection = true;
+    drawCoverArt(canvasEl, editorState);
   }, 'image/png');
 });
 
-// Boot: a fixed ?shot= scene for screenshots, otherwise the demo cover so
-// the first thing anyone sees is a finished poster, not an empty form.
-const scene = readShotScene(new URLSearchParams(location.search));
-refreshChipGroups();
-if (scene) {
-  state.sizeId = scene.sizeId;
-  state.layout = scene.layout;
-  state.grade = scene.grade;
-  state.caption = scene.caption;
-  state.subtitle = scene.subtitle;
-  state.badge = scene.badge;
-  state.stars = scene.stars;
-  captionInput.value = scene.caption;
-  subtitleInput.value = scene.subtitle;
-  badgeInput.value = scene.badge;
-  starRange.value = String(scene.stars);
-  if (scene.mode === 'cover') {
+// --- Boot ------------------------------------------------------------------
+const shotScene = readShotScene(new URLSearchParams(window.location.search));
+refreshAllChipRows();
+
+if (shotScene) {
+  editorState.sizeId = shotScene.sizeId;
+  editorState.layout = shotScene.layout;
+  editorState.grade = shotScene.grade;
+  editorState.caption = shotScene.caption;
+  editorState.subtitle = shotScene.subtitle;
+  editorState.badge = shotScene.badge;
+  editorState.stars = shotScene.stars;
+  captionField.value = shotScene.caption;
+  subtitleField.value = shotScene.subtitle;
+  badgeField.value = shotScene.badge;
+  starsSlider.value = String(shotScene.stars);
+
+  if (shotScene.mode === 'cover') {
     document.body.classList.add('shot-cover');
-    state.showSelection = false;
+    editorState.showSelection = false;
   }
-  state.photos = [];
-  state.photoUrls = [];
-  state.panels = [];
-  for (const url of scene.photoUrls) {
-    state.photos.push(await loadImageFromUrl(url));
-    state.photoUrls.push(url);
+
+  editorState.photos = [];
+  editorState.photoUrls = [];
+  editorState.panels = [];
+  for (const url of shotScene.photoUrls) {
+    const img = await loadImageFromUrl(url);
+    editorState.photos.push(img);
+    editorState.photoUrls.push(url);
   }
-  syncPanels();
-  state.panels.forEach((panel, index) => { panel.photoIndex = index % state.photos.length; });
-  renderThumbs();
-  refreshChipGroups();
-  redraw();
+  ensurePanelCount();
+  editorState.panels.forEach((panel, i) => {
+    panel.photoIndex = i % editorState.photos.length;
+  });
+  renderThumbnails();
+  refreshAllChipRows();
+  paint();
   markShotReady();
 } else {
-  await loadDemoPhotos();
-  statusLine.textContent = 'Demo cover ready — add your own photos to make it yours, then download the PNG.';
+  await loadDemoSet();
+  statusEl.textContent =
+    'Demo cover ready — add your own photos to make it yours, then download the PNG.';
 }
