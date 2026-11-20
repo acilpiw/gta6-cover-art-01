@@ -1,8 +1,8 @@
 # Neon Coast Cover Studio
 
-[![make.fun](https://make.fun/badge/gta6-cover-art-01.svg)](https://make.fun/c/gta6-cover-art-01)
-[![rank](https://make.fun/rank.svg?repo=acilpiw/gta6-cover-art-01)](https://make.fun/c/gta6-cover-art-01)
-[![reward](https://make.fun/reward.svg?repo=acilpiw/gta6-cover-art-01)](https://make.fun/c/gta6-cover-art-01)
+[![make.fun · gta6-cover-art-01](https://make.fun/badge/gta6-cover-art-01.svg)](https://make.fun/bounty/gta6-cover-art-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
+[![rank](https://make.fun/badge/gta6-cover-art-01/acilpiw/gta6-cover-art-01/rank.svg)](https://make.fun/bounty/gta6-cover-art-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
+[![reward](https://make.fun/badge/gta6-cover-art-01/acilpiw/gta6-cover-art-01/reward.svg)](https://make.fun/bounty/gta6-cover-art-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-cover-art-01)
 
 An offline web app that turns your own photos and a caption into GTA-style
 multi-panel cover art — the classic poster grid with a white frame, a Vice
